@@ -547,6 +547,18 @@ TOOL_DESC_INTERVIEW_AGENTS = """\
 
 【重要】需要OASIS模拟环境正在运行才能使用此功能！"""
 
+# ── Жёсткие правила выходного языка ──
+# Применяется поверх get_language_instruction(), чтобы LLM не сваливался
+# в английские обороты внутри длинных русско/казахских ответов.
+STRICT_OUTPUT_LANGUAGE_RULES = """\
+СТРОГОЕ ПРАВИЛО ЯЗЫКА ВЫВОДА:
+- Весь связный текст (нарратив, формулировки, выводы) — на языке, указанном выше.
+- Запрещено использовать английские слова, фразы или обороты в роли служебных слов: «informed», «adopted», «report», «analysis», «consideration» и т.п. Если такие появляются — переводи их.
+- Имена собственные (люди, организации, бренды, города, продукты) сохраняй как они есть в источнике. Например: Threads, Instagram, MiroFish, Vlast.kz, @kzeconomist — оставлять без перевода.
+- Цитаты респондентов передавай так, как они звучали на языке вывода. Если в исходнике цитата была на другом языке — переведи её, сохраняя смысл и тон, и пометь «(перевод)».
+- Не оставляй структурные заголовки на других языках. Все заголовки секций, маркеры списков, метки таблиц — на языке вывода.
+"""
+
 # ── 大纲规划 prompt ──
 
 PLAN_SYSTEM_PROMPT = """\
@@ -1163,7 +1175,7 @@ class ReportAgent:
         if progress_callback:
             progress_callback("planning", 30, t('progress.generatingOutline'))
         
-        system_prompt = f"{PLAN_SYSTEM_PROMPT}\n\n{get_language_instruction()}"
+        system_prompt = f"{get_language_instruction()}\n\n{STRICT_OUTPUT_LANGUAGE_RULES}\n\n{PLAN_SYSTEM_PROMPT}\n\n{get_language_instruction()}\n\n{STRICT_OUTPUT_LANGUAGE_RULES}"
         user_prompt = PLAN_USER_PROMPT_TEMPLATE.format(
             simulation_requirement=self.simulation_requirement,
             total_nodes=context.get('graph_statistics', {}).get('total_nodes', 0),
@@ -1252,14 +1264,20 @@ class ReportAgent:
         if self.report_logger:
             self.report_logger.log_section_start(section.title, section_index)
         
-        system_prompt = SECTION_SYSTEM_PROMPT_TEMPLATE.format(
+        section_body = SECTION_SYSTEM_PROMPT_TEMPLATE.format(
             report_title=outline.title,
             report_summary=outline.summary,
             simulation_requirement=self.simulation_requirement,
             section_title=section.title,
             tools_description=self._get_tools_description(),
         )
-        system_prompt = f"{system_prompt}\n\n{get_language_instruction()}"
+        system_prompt = (
+            f"{get_language_instruction()}\n\n"
+            f"{STRICT_OUTPUT_LANGUAGE_RULES}\n\n"
+            f"{section_body}\n\n"
+            f"{get_language_instruction()}\n\n"
+            f"{STRICT_OUTPUT_LANGUAGE_RULES}"
+        )
 
         # 构建用户prompt - 每个已完成章节各传入最大4000字
         if previous_sections:
@@ -1805,7 +1823,13 @@ class ReportAgent:
             report_content=report_content if report_content else "（暂无报告）",
             tools_description=self._get_tools_description(),
         )
-        system_prompt = f"{system_prompt}\n\n{get_language_instruction()}"
+        system_prompt = (
+            f"{get_language_instruction()}\n\n"
+            f"{STRICT_OUTPUT_LANGUAGE_RULES}\n\n"
+            f"{system_prompt}\n\n"
+            f"{get_language_instruction()}\n\n"
+            f"{STRICT_OUTPUT_LANGUAGE_RULES}"
+        )
 
         # 构建消息
         messages = [{"role": "system", "content": system_prompt}]

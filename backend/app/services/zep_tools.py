@@ -18,7 +18,7 @@ from zep_cloud.client import Zep
 from ..config import Config
 from ..utils.logger import get_logger
 from ..utils.llm_client import LLMClient
-from ..utils.locale import get_locale, t
+from ..utils.locale import get_locale, get_language_instruction, t
 from ..utils.zep_paging import fetch_all_nodes, fetch_all_edges
 
 logger = get_logger('mirofish.zep_tools')
@@ -1577,7 +1577,7 @@ class ZepToolsService:
             }
             agent_summaries.append(summary)
         
-        system_prompt = """你是一个专业的采访策划专家。你的任务是根据采访需求，从模拟Agent列表中选择最适合采访的对象。
+        system_prompt = f"""你是一个专业的采访策划专家。你的任务是根据采访需求，从模拟Agent列表中选择最适合采访的对象。
 
 选择标准：
 1. Agent的身份/职业与采访主题相关
@@ -1585,11 +1585,13 @@ class ZepToolsService:
 3. 选择多样化的视角（如：支持方、反对方、中立方、专业人士等）
 4. 优先选择与事件直接相关的角色
 
+{get_language_instruction()}
+
 返回JSON格式：
-{
+{{
     "selected_indices": [选中Agent的索引列表],
     "reasoning": "选择理由说明"
-}"""
+}}"""
 
         user_prompt = f"""采访需求：
 {interview_requirement}
@@ -1641,7 +1643,7 @@ class ZepToolsService:
         
         agent_roles = [a.get("profession", "未知") for a in selected_agents]
         
-        system_prompt = """你是一个专业的记者/采访者。根据采访需求，生成3-5个深度采访问题。
+        system_prompt = f"""你是一个专业的记者/采访者。根据采访需求，生成3-5个深度采访问题。
 
 问题要求：
 1. 开放性问题，鼓励详细回答
@@ -1651,7 +1653,9 @@ class ZepToolsService:
 5. 每个问题控制在50字以内，简洁明了
 6. 直接提问，不要包含背景说明或前缀
 
-返回JSON格式：{"questions": ["问题1", "问题2", ...]}"""
+{get_language_instruction()}
+
+返回JSON格式：{{"questions": ["问题1", "问题2", ...]}}"""
 
         user_prompt = f"""采访需求：{interview_requirement}
 
@@ -1710,7 +1714,9 @@ class ZepToolsService:
 - 不要使用Markdown标题（如#、##、###）
 - 不要使用分割线（如---、***）
 - {quote_instruction}
-- 可以使用**加粗**标记关键词，但不要使用其他Markdown语法"""
+- 可以使用**加粗**标记关键词，但不要使用其他Markdown语法
+
+{get_language_instruction()}"""
 
         user_prompt = f"""采访主题：{interview_requirement}
 
