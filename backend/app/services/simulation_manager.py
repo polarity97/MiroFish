@@ -49,8 +49,8 @@ class SimulationState:
     
     # 平台启用状态
     enable_twitter: bool = True
-    enable_reddit: bool = True
-    
+    enable_reddit: bool = False
+
     # 状态
     status: SimulationStatus = SimulationStatus.CREATED
     
@@ -173,7 +173,7 @@ class SimulationManager:
             project_id=data.get("project_id", ""),
             graph_id=data.get("graph_id", ""),
             enable_twitter=data.get("enable_twitter", True),
-            enable_reddit=data.get("enable_reddit", True),
+            enable_reddit=data.get("enable_reddit", False),
             status=SimulationStatus(data.get("status", "created")),
             entities_count=data.get("entities_count", 0),
             profiles_count=data.get("profiles_count", 0),
@@ -196,7 +196,7 @@ class SimulationManager:
         project_id: str,
         graph_id: str,
         enable_twitter: bool = True,
-        enable_reddit: bool = True,
+        enable_reddit: bool = False,
     ) -> SimulationState:
         """
         创建新的模拟

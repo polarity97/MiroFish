@@ -220,7 +220,7 @@ def create_simulation():
             project_id=project_id,
             graph_id=graph_id,
             enable_twitter=data.get('enable_twitter', True),
-            enable_reddit=data.get('enable_reddit', True),
+            enable_reddit=data.get('enable_reddit', False),
         )
         
         return jsonify({
