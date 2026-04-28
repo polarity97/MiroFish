@@ -14,12 +14,14 @@ for (const path in localeFiles) {
   }
 }
 
-const savedLocale = localStorage.getItem('locale') || 'zh'
+const DEFAULT_LOCALE = 'ru'
+const stored = localStorage.getItem('locale')
+const savedLocale = stored && messages[stored] ? stored : DEFAULT_LOCALE
 
 const i18n = createI18n({
   legacy: false,
   locale: savedLocale,
-  fallbackLocale: 'zh',
+  fallbackLocale: DEFAULT_LOCALE,
   messages
 })
 

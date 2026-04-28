@@ -1,8 +1,4 @@
 {
-  "zh": {
-    "label": "中文",
-    "llmInstruction": "请使用中文回答。"
-  },
   "en": {
     "label": "English",
     "llmInstruction": "Please respond in English."
@@ -22,6 +18,10 @@
   "ru": {
     "label": "Русский",
     "llmInstruction": "Пожалуйста, отвечайте на русском языке."
+  },
+  "kk": {
+    "label": "Қазақша",
+    "llmInstruction": "Өтінеміз, қазақ тілінде жауап беріңіз."
   },
   "de": {
     "label": "Deutsch",

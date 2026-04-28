@@ -507,7 +507,7 @@
     "configSummaryHours": "  ├─ 模拟时长: {hours}小时",
     "configSummaryPosts": "  ├─ 初始帖子: {count}条",
     "configSummaryTopics": "  ├─ 热点话题: {count}个",
-    "configSummaryPlatforms": "  └─ 平台配置: Twitter {twitter}, Reddit {reddit}",
+    "configSummaryPlatforms": "  └─ 平台配置: Threads {twitter}, Reddit {reddit}",
     "timeConfigDetail": "时间配置: 每轮{minutes}分钟, 共{rounds}轮",
     "narrativeDirection": "叙事方向: {direction}",
     "envSetupComplete": "✓ 环境搭建完成，可以开始模拟",
