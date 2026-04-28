@@ -26,8 +26,8 @@
     "files": "файл"
   },
   "meta": {
-    "title": "MiroFish — Қазақстанға арналған Threads симуляторы",
-    "description": "MiroFish — Threads әлеуметтік желісіндегі қоғамдық пікірді симуляциялау"
+    "title": "PredictAll — Қазақстанға арналған Threads симуляторы",
+    "description": "PredictAll — Threads әлеуметтік желісіндегі қоғамдық пікірді симуляциялау"
   },
   "nav": {
     "visitGithub": "Github бетіне өту"
@@ -38,7 +38,7 @@
     "heroTitle1": "Есепті жүктеңіз —",
     "heroTitle2": "болашақты болжаңыз",
     "heroDesc": "Бір құжаттан {brand} «шындық тұқымдарын» алып, {agentScale} дейінгі параллель Threads әлемін автоматты түрде жасайды. «Жоғарыдан көрініс» арқылы өзгерістер енгізіп, күрделі топ динамикасында {optimalSolution} табыңыз.",
-    "heroDescBrand": "MiroFish",
+    "heroDescBrand": "PredictAll",
     "heroDescAgentScale": "миллиондаған агент",
     "heroDescOptimalSolution": "«жергілікті оңтайлы шешім»",
     "slogan": "Агенттер болашақты дайындасын — шешімді сіз қабылдаңыз",
@@ -67,7 +67,7 @@
     "inputParams": "Параметрлер",
     "simulationPrompt": ">_ 02 / Симуляция сұранысы",
     "promptPlaceholder": "// Сценарийді немесе болжамды табиғи тілмен сипаттаңыз",
-    "engineBadge": "Қозғалтқыш: MiroFish-V1.0",
+    "engineBadge": "Қозғалтқыш: PredictAll-V1.0",
     "startEngine": "Қозғалтқышты іске қосу",
     "initializing": "Инициализация..."
   },
@@ -145,7 +145,7 @@
     "setupComplete": "Setup Complete",
     "setupCompleteDesc": "Simulation environment is ready. You can now start the simulation.",
     "roundsConfig": "Simulation Rounds Configuration",
-    "roundsConfigDesc": "MiroFish auto-plans to simulate {hours} real-world hours, each round representing {minutesPerRound} minutes of elapsed time",
+    "roundsConfigDesc": "PredictAll auto-plans to simulate {hours} real-world hours, each round representing {minutesPerRound} minutes of elapsed time",
     "customToggle": "Custom",
     "roundsUnit": "rounds",
     "estimatedDuration": "For 100 Agents: est. ~{minutes} minutes",
@@ -257,7 +257,7 @@
     "selectChatTarget": "Select chat target",
     "sendSurvey": "Send survey to the world",
     "reportAgentChat": "Report Agent - Chat",
-    "reportAgentDesc": "A conversational version of the report generation agent with access to 4 professional tools and MiroFish's complete memory",
+    "reportAgentDesc": "A conversational version of the report generation agent with access to 4 professional tools and PredictAll's complete memory",
     "toolInsightForge": "InsightForge Deep Attribution",
     "toolInsightForgeDesc": "Aligns real-world seed data with simulation state, combining Global/Local Memory for cross-temporal deep attribution analysis",
     "toolPanoramaSearch": "PanoramaSearch Full Tracking",

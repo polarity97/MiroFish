@@ -1,8 +1,8 @@
 services:
-  mirofish:
+  predictall:
     build: .
-    image: mirofish:local
-    container_name: mirofish
+    image: predictall:local
+    container_name: predictall
     env_file:
       - .env
     ports:
