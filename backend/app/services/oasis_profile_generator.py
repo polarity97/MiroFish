@@ -9,6 +9,7 @@ OASIS Agent Profile生成器
 """
 
 import json
+import os
 import random
 import time
 from typing import Dict, Any, List, Optional
@@ -20,7 +21,7 @@ from zep_cloud.client import Zep
 
 from ..config import Config
 from ..utils.logger import get_logger
-from ..utils.locale import get_language_instruction, get_locale, set_locale, t
+from ..utils.locale import get_language_instruction, get_agent_language_instruction, get_locale, set_locale, t
 from .zep_entity_reader import EntityNode, ZepEntityReader
 
 logger = get_logger('mirofish.oasis_profile')
@@ -168,14 +169,23 @@ class OasisProfileGenerator:
     
     # 个人类型实体（需要生成具体人设）
     INDIVIDUAL_ENTITY_TYPES = [
-        "student", "alumni", "professor", "person", "publicfigure", 
+        "student", "alumni", "professor", "person", "publicfigure",
         "expert", "faculty", "official", "journalist", "activist"
     ]
-    
+
     # 群体/机构类型实体（需要生成群体代表人设）
     GROUP_ENTITY_TYPES = [
-        "university", "governmentagency", "organization", "ngo", 
+        "university", "governmentagency", "organization", "ngo",
         "mediaoutlet", "company", "institution", "group", "community"
+    ]
+
+    # Демографические типы — обычная аудитория, которую нужно размножать
+    # (одна сущность графа → N синтетических индивидов с разной демографией).
+    # Размер N задаётся env-переменной SIMULATION_DEMOGRAPHIC_MULTIPLIER (default 5).
+    DEMOGRAPHIC_ENTITY_TYPES = [
+        "localresident", "resident", "citizen", "population",
+        "demographic", "householder", "worker", "consumer",
+        "audience", "publicgroup", "voter"
     ]
     
     def __init__(
@@ -210,31 +220,34 @@ class OasisProfileGenerator:
                 logger.warning(f"Zep客户端初始化失败: {e}")
     
     def generate_profile_from_entity(
-        self, 
-        entity: EntityNode, 
+        self,
+        entity: EntityNode,
         user_id: int,
-        use_llm: bool = True
+        use_llm: bool = True,
+        variation_hint: Optional[str] = None,
     ) -> OasisAgentProfile:
         """
         从Zep实体生成OASIS Agent Profile
-        
+
         Args:
             entity: Zep实体节点
             user_id: 用户ID（用于OASIS）
             use_llm: 是否使用LLM生成详细人设
-            
+            variation_hint: For demographic replicas — adds variation guidance to
+                the prompt and uses LLM-generated name/username instead of entity.name.
+
         Returns:
             OasisAgentProfile
         """
         entity_type = entity.get_entity_type() or "Entity"
-        
+
         # 基础信息
         name = entity.name
         user_name = self._generate_username(name)
-        
+
         # 构建上下文信息
         context = self._build_entity_context(entity)
-        
+
         if use_llm:
             # 使用LLM生成详细人设
             profile_data = self._generate_profile_with_llm(
@@ -242,7 +255,8 @@ class OasisProfileGenerator:
                 entity_type=entity_type,
                 entity_summary=entity.summary,
                 entity_attributes=entity.attributes,
-                context=context
+                context=context,
+                variation_hint=variation_hint,
             )
         else:
             # 使用规则生成基础人设
@@ -252,7 +266,16 @@ class OasisProfileGenerator:
                 entity_summary=entity.summary,
                 entity_attributes=entity.attributes
             )
-        
+
+        # For demographic replicas, prefer LLM-generated name/username so each
+        # replica has a distinct identity (otherwise all clones share entity.name).
+        if variation_hint:
+            llm_name = (profile_data.get("name") or "").strip()
+            llm_user_name = (profile_data.get("user_name") or "").strip()
+            if llm_name:
+                name = llm_name
+            user_name = self._generate_username(llm_user_name or llm_name or entity.name)
+
         return OasisAgentProfile(
             user_id=user_id,
             user_name=user_name,
@@ -493,6 +516,67 @@ class OasisProfileGenerator:
     def _is_group_entity(self, entity_type: str) -> bool:
         """判断是否是群体/机构类型实体"""
         return entity_type.lower() in self.GROUP_ENTITY_TYPES
+
+    def _is_demographic_entity(self, entity_type: str) -> bool:
+        return entity_type.lower() in self.DEMOGRAPHIC_ENTITY_TYPES
+
+    def _get_replica_count(self, entity_type: str) -> int:
+        """How many synthetic individuals to spawn from a single entity."""
+        if not self._is_demographic_entity(entity_type):
+            return 1
+        try:
+            n = int(os.getenv("SIMULATION_DEMOGRAPHIC_MULTIPLIER", "5"))
+        except ValueError:
+            n = 5
+        return max(1, n)
+
+    def _make_variation_hint(self, replica_idx: int, total: int) -> str:
+        """Sampled axes of variation for a demographic replica.
+
+        Used to push LLM toward a distinct individual rather than a clone.
+        Random per replica; LLM still has freedom to pick details.
+        """
+        age_brackets = ["18–24", "25–34", "35–44", "45–54", "55–67"]
+        income_tiers = [
+            "низкий (90–180 тыс. тенге/мес)",
+            "ниже среднего (180–280 тыс.)",
+            "средний (280–450 тыс.)",
+            "выше среднего (450–700 тыс.)",
+            "высокий (700 тыс.+)"
+        ]
+        leans = [
+            "резко против повышения",
+            "против, но готов к диалогу",
+            "нейтрально-апатичен",
+            "понимает необходимость, но недоволен сроками",
+            "поддерживает, доверяет институтам"
+        ]
+        post_styles = [
+            "лурк (читает, почти не пишет)",
+            "редкий постер (1–2 поста в неделю)",
+            "обычный пользователь (3–5 постов в неделю)",
+            "активный (10+ постов в неделю)",
+            "микро-инфлюенсер (длинные нити, аудитория 5–20k)"
+        ]
+        languages = [
+            "русскоязычный",
+            "казахоязычный",
+            "билингв с преобладанием русского, code-switching на казахский",
+            "билингв с преобладанием казахского, code-switching на русский",
+            "русский с уйгурским/корейским/узбекским колоритом"
+        ]
+        # Use replica_idx + random to ensure variation but not pure determinism
+        return (
+            f"Это вариация #{replica_idx + 1} из {total}. "
+            f"Возрастная группа: {random.choice(age_brackets)}. "
+            f"Уровень дохода: {random.choice(income_tiers)}. "
+            f"Позиция по обсуждаемой теме: {random.choice(leans)}. "
+            f"Поведение в Threads: {random.choice(post_styles)}. "
+            f"Язык: {random.choice(languages)}. "
+            "Сгенерируй уникального человека с конкретным именем (казахским, русским, "
+            "уйгурским или корейским), профессией и районом проживания. Не используй "
+            "обобщённое название группы как имя — это должен быть отдельный индивид."
+        )
     
     def _generate_profile_with_llm(
         self,
@@ -500,21 +584,26 @@ class OasisProfileGenerator:
         entity_type: str,
         entity_summary: str,
         entity_attributes: Dict[str, Any],
-        context: str
+        context: str,
+        variation_hint: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         使用LLM生成非常详细的人设
-        
+
         根据实体类型区分：
         - 个人实体：生成具体的人物设定
         - 群体/机构实体：生成代表性账号设定
+        - демография实体（через variation_hint）：生成индивид с уникальным именем
         """
-        
-        is_individual = self._is_individual_entity(entity_type)
-        
+
+        # Demographic replicas always use the individual prompt path so we get
+        # a person, not an institutional account.
+        is_individual = bool(variation_hint) or self._is_individual_entity(entity_type)
+
         if is_individual:
             prompt = self._build_individual_persona_prompt(
-                entity_name, entity_type, entity_summary, entity_attributes, context
+                entity_name, entity_type, entity_summary, entity_attributes, context,
+                variation_hint=variation_hint,
             )
         else:
             prompt = self._build_group_persona_prompt(
@@ -672,7 +761,12 @@ class OasisProfileGenerator:
     def _get_system_prompt(self, is_individual: bool) -> str:
         """获取系统提示词"""
         base_prompt = "你是社交媒体用户画像生成专家。生成详细、真实的人设用于舆论模拟,最大程度还原已有现实情况。必须返回有效的JSON格式，所有字符串值不能包含未转义的换行符。"
-        return f"{base_prompt}\n\n{get_language_instruction()}"
+        lang_instruction = get_agent_language_instruction() if is_individual else get_language_instruction()
+        parts = [base_prompt, lang_instruction]
+        region_context = os.getenv("SIMULATION_REGION_CONTEXT", "").strip()
+        if region_context:
+            parts.append(region_context)
+        return "\n\n".join(parts)
     
     def _build_individual_persona_prompt(
         self,
@@ -680,13 +774,36 @@ class OasisProfileGenerator:
         entity_type: str,
         entity_summary: str,
         entity_attributes: Dict[str, Any],
-        context: str
+        context: str,
+        variation_hint: Optional[str] = None,
     ) -> str:
         """构建个人实体的详细人设提示词"""
-        
+
         attrs_str = json.dumps(entity_attributes, ensure_ascii=False) if entity_attributes else "无"
         context_str = context[:3000] if context else "无额外上下文"
-        
+
+        # When variation_hint is set, this is a demographic replica — push LLM
+        # to invent a unique individual rather than reuse entity_name.
+        variation_block = ""
+        extra_fields = ""
+        extra_rules = ""
+        if variation_hint:
+            variation_block = f"\nВариация для демографической реплики:\n{variation_hint}\n"
+            extra_fields = (
+                "0. name: уникальное имя и фамилия конкретного человека (например, "
+                "«Айгерим Сатпаева», «Серик Жумабаев», «Анна Цой»). НЕ используй общее "
+                "название группы.\n"
+                "9. user_name: латинский никнейм для соцсети (например, "
+                "«aigerim_satpayeva», «serik_jb», «anna_tsoy»).\n"
+            )
+            extra_rules = (
+                "- Для name выбирай имена характерные для Казахстана (казахские, русские, "
+                "уйгурские, корейские) — соответственно языковому профилю из вариации.\n"
+                "- name и user_name должны быть уникальны и НЕ совпадать с {entity_name}.\n"
+                "- Учти все оси вариации (возраст/доход/позиция/поведение/язык) и "
+                "сделай человека правдоподобным казахстанцем.\n"
+            ).format(entity_name=entity_name)
+
         return f"""为实体生成详细的社交媒体用户人设,最大程度还原已有现实情况。
 
 实体名称: {entity_name}
@@ -696,10 +813,10 @@ class OasisProfileGenerator:
 
 上下文信息:
 {context_str}
-
+{variation_block}
 请生成JSON，包含以下字段:
 
-1. bio: 社交媒体简介，200字
+{extra_fields}1. bio: 社交媒体简介，200字
 2. persona: 详细人设描述（2000字的纯文本），需包含:
    - 基本信息（年龄、职业、教育背景、所在地）
    - 人物背景（重要经历、与事件的关联、社会关系）
@@ -721,7 +838,7 @@ class OasisProfileGenerator:
 - {get_language_instruction()} (gender字段必须用英文male/female)
 - 内容要与实体信息保持一致
 - age必须是有效的整数，gender必须是"male"或"female"
-"""
+{extra_rules}"""
 
     def _build_group_persona_prompt(
         self,
@@ -879,8 +996,28 @@ class OasisProfileGenerator:
         # 设置graph_id用于Zep检索
         if graph_id:
             self.graph_id = graph_id
-        
-        total = len(entities)
+
+        # Expand demographic entities into multiple replicas with variation hints.
+        # Each task is (user_id, entity, variation_hint_or_None).
+        tasks: List[tuple] = []
+        next_user_id = 0
+        for entity in entities:
+            entity_type = entity.get_entity_type() or "Entity"
+            replicas = self._get_replica_count(entity_type)
+            if replicas == 1:
+                tasks.append((next_user_id, entity, None))
+                next_user_id += 1
+            else:
+                logger.info(
+                    f"Демографическая сущность «{entity.name}» ({entity_type}): "
+                    f"генерирую {replicas} индивидов"
+                )
+                for r in range(replicas):
+                    hint = self._make_variation_hint(r, replicas)
+                    tasks.append((next_user_id, entity, hint))
+                    next_user_id += 1
+
+        total = len(tasks)
         profiles = [None] * total  # 预分配列表保持顺序
         completed_count = [0]  # 使用列表以便在闭包中修改
         lock = Lock()
@@ -919,28 +1056,30 @@ class OasisProfileGenerator:
         # Capture locale before spawning thread pool workers
         current_locale = get_locale()
 
-        def generate_single_profile(idx: int, entity: EntityNode) -> tuple:
+        # task_index → tasks position (so we can write into profiles[task_index])
+        def generate_single_profile(task_index: int, user_id: int, entity: EntityNode, variation_hint: Optional[str]) -> tuple:
             """生成单个profile的工作函数"""
             set_locale(current_locale)
             entity_type = entity.get_entity_type() or "Entity"
-            
+
             try:
                 profile = self.generate_profile_from_entity(
                     entity=entity,
-                    user_id=idx,
-                    use_llm=use_llm
+                    user_id=user_id,
+                    use_llm=use_llm,
+                    variation_hint=variation_hint,
                 )
-                
+
                 # 实时输出生成的人设到控制台和日志
                 self._print_generated_profile(entity.name, entity_type, profile)
-                
-                return idx, profile, None
-                
+
+                return task_index, profile, None
+
             except Exception as e:
                 logger.error(f"生成实体 {entity.name} 的人设失败: {str(e)}")
                 # 创建一个基础profile
                 fallback_profile = OasisAgentProfile(
-                    user_id=idx,
+                    user_id=user_id,
                     user_name=self._generate_username(entity.name),
                     name=entity.name,
                     bio=f"{entity_type}: {entity.name}",
@@ -948,21 +1087,21 @@ class OasisProfileGenerator:
                     source_entity_uuid=entity.uuid,
                     source_entity_type=entity_type,
                 )
-                return idx, fallback_profile, str(e)
-        
+                return task_index, fallback_profile, str(e)
+
         logger.info(f"开始并行生成 {total} 个Agent人设（并行数: {parallel_count}）...")
         print(f"\n{'='*60}")
         print(f"开始生成Agent人设 - 共 {total} 个实体，并行数: {parallel_count}")
         print(f"{'='*60}\n")
-        
+
         # 使用线程池并行执行
         with concurrent.futures.ThreadPoolExecutor(max_workers=parallel_count) as executor:
             # 提交所有任务
             future_to_entity = {
-                executor.submit(generate_single_profile, idx, entity): (idx, entity)
-                for idx, entity in enumerate(entities)
+                executor.submit(generate_single_profile, task_idx, user_id, entity, hint): (task_idx, entity)
+                for task_idx, (user_id, entity, hint) in enumerate(tasks)
             }
-            
+
             # 收集结果
             for future in concurrent.futures.as_completed(future_to_entity):
                 idx, entity = future_to_entity[future]
@@ -995,8 +1134,9 @@ class OasisProfileGenerator:
                     logger.error(f"处理实体 {entity.name} 时发生异常: {str(e)}")
                     with lock:
                         completed_count[0] += 1
+                    fallback_user_id = tasks[idx][0] if idx < len(tasks) else idx
                     profiles[idx] = OasisAgentProfile(
-                        user_id=idx,
+                        user_id=fallback_user_id,
                         user_name=self._generate_username(entity.name),
                         name=entity.name,
                         bio=f"{entity_type}: {entity.name}",

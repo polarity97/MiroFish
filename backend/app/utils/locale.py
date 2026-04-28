@@ -3,6 +3,8 @@ import os
 import threading
 from flask import request, has_request_context
 
+
+
 _thread_local = threading.local()
 
 _locales_dir = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'locales')
@@ -67,3 +69,16 @@ def get_language_instruction() -> str:
     locale = get_locale()
     lang_config = _languages.get(locale, _languages.get('zh', {}))
     return lang_config.get('llmInstruction', '请使用中文回答。')
+
+
+def get_agent_language_instruction() -> str:
+    """Language instruction for agent-generated content (personas, interviews).
+
+    Falls back to UI locale instruction unless SIMULATION_AGENT_LANGUAGE is set.
+    Use this in places where agents/interviewees produce text — UI locale is
+    a poor fit for bilingual settings (e.g. Russian-Kazakh code-switching in KZ).
+    """
+    override = os.getenv("SIMULATION_AGENT_LANGUAGE", "").strip()
+    if override:
+        return override
+    return get_language_instruction()
