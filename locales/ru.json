@@ -316,7 +316,12 @@
     "notStarted": "Not started",
     "roundsProgress": "{current}/{total} rounds",
     "untitledSimulation": "Untitled simulation",
-    "unknownFile": "Unknown file"
+    "unknownFile": "Unknown file",
+    "delete": "Удалить",
+    "deleteTitle": "Удалить симуляцию",
+    "deleteConfirm": "Удалить симуляцию {id}? Запущенные процессы будут остановлены, а её данные будут безвозвратно удалены.",
+    "deleting": "Удаление…",
+    "deleteFailed": "Не удалось удалить симуляцию: {error}"
   },
   "api": {
     "projectNotFound": "Project not found: {id}",

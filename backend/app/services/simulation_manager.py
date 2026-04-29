@@ -478,6 +478,28 @@ class SimulationManager:
         
         return simulations
     
+    def delete_simulation(self, simulation_id: str) -> bool:
+        """
+        删除模拟：移除磁盘目录与内存缓存。
+
+        前置条件：调用方需先停止正在运行的进程（参见 SimulationRunner.stop_simulation
+        以及随后的进程/句柄清理）。本方法只负责状态与文件清理。
+        """
+        sim_dir = os.path.join(self.SIMULATION_DATA_DIR, simulation_id)
+
+        existed = os.path.isdir(sim_dir)
+        if existed:
+            shutil.rmtree(sim_dir, ignore_errors=True)
+
+        self._simulations.pop(simulation_id, None)
+
+        if existed:
+            logger.info(f"已删除模拟: {simulation_id}")
+        else:
+            logger.warning(f"删除模拟时目录不存在: {simulation_id}")
+
+        return existed
+
     def get_profiles(self, simulation_id: str, platform: str = "reddit") -> List[Dict[str, Any]]:
         """获取模拟的Agent Profile"""
         state = self._load_simulation_state(simulation_id)

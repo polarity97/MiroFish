@@ -785,6 +785,41 @@ def get_simulation(simulation_id: str):
         }), 500
 
 
+@simulation_bp.route('/<simulation_id>', methods=['DELETE'])
+def delete_simulation(simulation_id: str):
+    """
+    删除模拟：终止仍在运行的进程，删除磁盘目录与内存状态。
+    """
+    try:
+        manager = SimulationManager()
+        state = manager.get_simulation(simulation_id)
+        if not state:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+
+        try:
+            SimulationRunner.cleanup_simulation(simulation_id)
+        except Exception as e:
+            logger.warning(f"清理模拟运行时资源失败: {simulation_id}, error={e}")
+
+        manager.delete_simulation(simulation_id)
+
+        return jsonify({
+            "success": True,
+            "data": {"simulation_id": simulation_id}
+        })
+
+    except Exception as e:
+        logger.error(f"删除模拟失败: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
 @simulation_bp.route('/list', methods=['GET'])
 def list_simulations():
     """

@@ -820,7 +820,60 @@ class SimulationRunner:
         
         logger.info(f"模拟已停止: {simulation_id}")
         return state
-    
+
+    @classmethod
+    def cleanup_simulation(cls, simulation_id: str) -> None:
+        """
+        清理一个模拟的运行时资源（用于删除场景）。
+
+        - 若进程仍在运行则强制终止
+        - 关闭 stdout / stderr 文件句柄
+        - 停止图谱记忆更新器（若已启用）
+        - 从所有内存字典中移除该 simulation_id
+        """
+        process = cls._processes.get(simulation_id)
+        if process and process.poll() is None:
+            try:
+                cls._terminate_process(process, simulation_id, timeout=5)
+            except ProcessLookupError:
+                pass
+            except Exception as e:
+                logger.error(f"清理时终止进程失败: {simulation_id}, error={e}")
+                try:
+                    process.terminate()
+                    process.wait(timeout=5)
+                except Exception:
+                    try:
+                        process.kill()
+                    except Exception:
+                        pass
+
+        if cls._graph_memory_enabled.get(simulation_id, False):
+            try:
+                ZepGraphMemoryManager.stop_updater(simulation_id)
+            except Exception as e:
+                logger.error(f"停止图谱记忆更新器失败: {simulation_id}, error={e}")
+            cls._graph_memory_enabled.pop(simulation_id, None)
+
+        if simulation_id in cls._stdout_files:
+            try:
+                cls._stdout_files[simulation_id].close()
+            except Exception:
+                pass
+            cls._stdout_files.pop(simulation_id, None)
+
+        if simulation_id in cls._stderr_files and cls._stderr_files[simulation_id]:
+            try:
+                cls._stderr_files[simulation_id].close()
+            except Exception:
+                pass
+            cls._stderr_files.pop(simulation_id, None)
+
+        cls._processes.pop(simulation_id, None)
+        cls._action_queues.pop(simulation_id, None)
+        cls._monitor_threads.pop(simulation_id, None)
+        cls._run_states.pop(simulation_id, None)
+
     @classmethod
     def _read_actions_from_file(
         cls,

@@ -183,6 +183,18 @@
             <div class="modal-playback-hint">
               <span class="hint-text">{{ $t('history.replayHint') }}</span>
             </div>
+
+            <!-- 删除操作 -->
+            <div class="modal-danger-zone">
+              <button
+                class="modal-delete-btn"
+                @click="handleDelete"
+                :disabled="deleting"
+              >
+                <span class="delete-icon">×</span>
+                <span class="delete-text">{{ deleting ? $t('history.deleting') : $t('history.delete') }}</span>
+              </button>
+            </div>
           </div>
         </div>
       </Transition>
@@ -194,7 +206,7 @@
 import { ref, computed, onMounted, onUnmounted, onActivated, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { getSimulationHistory } from '../api/simulation'
+import { getSimulationHistory, deleteSimulation } from '../api/simulation'
 
 const router = useRouter()
 const route = useRoute()
@@ -207,6 +219,7 @@ const isExpanded = ref(false)
 const hoveringCard = ref(null)
 const historyContainer = ref(null)
 const selectedProject = ref(null)  // 当前选中的项目（用于弹窗）
+const deleting = ref(false)
 let observer = null
 let isAnimating = false  // 动画锁，防止闪烁
 let expandDebounceTimer = null  // 防抖定时器
@@ -433,6 +446,34 @@ const goToReport = () => {
       params: { reportId: selectedProject.value.report_id }
     })
     closeModal()
+  }
+}
+
+// 删除模拟
+const handleDelete = async () => {
+  if (!selectedProject.value || deleting.value) return
+
+  const sim = selectedProject.value
+  const idLabel = formatSimulationId(sim.simulation_id)
+  const confirmed = window.confirm(t('history.deleteConfirm', { id: idLabel }))
+  if (!confirmed) return
+
+  deleting.value = true
+  try {
+    const response = await deleteSimulation(sim.simulation_id)
+    if (response && response.success) {
+      projects.value = projects.value.filter(p => p.simulation_id !== sim.simulation_id)
+      closeModal()
+    } else {
+      const errorMsg = response?.error || 'Unknown error'
+      window.alert(t('history.deleteFailed', { error: errorMsg }))
+    }
+  } catch (error) {
+    console.error('删除模拟失败:', error)
+    const errorMsg = error?.response?.data?.error || error?.message || 'Network error'
+    window.alert(t('history.deleteFailed', { error: errorMsg }))
+  } finally {
+    deleting.value = false
   }
 }
 
@@ -1338,5 +1379,51 @@ onUnmounted(() => {
   letter-spacing: 0.3px;
   text-align: center;
   line-height: 1.5;
+}
+
+/* 删除操作区 */
+.modal-danger-zone {
+  display: flex;
+  justify-content: center;
+  padding: 0 32px 24px;
+  background: #FFFFFF;
+  border-top: 1px solid #F3F4F6;
+  padding-top: 16px;
+}
+
+.modal-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  border: 1px solid #FCA5A5;
+  border-radius: 6px;
+  background: #FFFFFF;
+  color: #DC2626;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.modal-delete-btn:hover:not(:disabled) {
+  background: #FEF2F2;
+  border-color: #DC2626;
+}
+
+.modal-delete-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.modal-delete-btn .delete-icon {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.modal-delete-btn .delete-text {
+  letter-spacing: 0.5px;
 }
 </style>

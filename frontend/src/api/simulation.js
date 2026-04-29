@@ -33,6 +33,14 @@ export const getSimulation = (simulationId) => {
 }
 
 /**
+ * 删除模拟（终止运行中的进程，移除磁盘数据与内存状态）
+ * @param {string} simulationId
+ */
+export const deleteSimulation = (simulationId) => {
+  return service.delete(`/api/simulation/${simulationId}`)
+}
+
+/**
  * 获取模拟的 Agent Profiles
  * @param {string} simulationId
  * @param {string} platform - 'reddit' | 'twitter'
