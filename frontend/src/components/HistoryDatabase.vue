@@ -19,8 +19,8 @@
 
     <!-- 卡片容器（只在有项目时显示） -->
     <div v-if="projects.length > 0" class="cards-container" :class="{ expanded: isExpanded }" :style="containerStyle">
-      <div 
-        v-for="(project, index) in projects" 
+      <div
+        v-for="(project, index) in projects"
         :key="project.simulation_id"
         class="project-card"
         :class="{ expanded: isExpanded, hovering: hoveringCard === index }"
@@ -29,6 +29,15 @@
         @mouseleave="hoveringCard = null"
         @click="navigateToProject(project)"
       >
+        <!-- 卡片删除按钮（hover 时可见） -->
+        <button
+          class="card-delete-btn"
+          :class="{ busy: deletingId === project.simulation_id }"
+          :title="$t('history.delete')"
+          :disabled="deletingId === project.simulation_id"
+          @click.stop="handleDelete(project)"
+        >×</button>
+
         <!-- 卡片头部：simulation_id 和 功能可用状态 -->
         <div class="card-header">
           <span class="card-id">{{ formatSimulationId(project.simulation_id) }}</span>
@@ -188,11 +197,11 @@
             <div class="modal-danger-zone">
               <button
                 class="modal-delete-btn"
-                @click="handleDelete"
-                :disabled="deleting"
+                @click="handleDelete()"
+                :disabled="!!deletingId"
               >
                 <span class="delete-icon">×</span>
-                <span class="delete-text">{{ deleting ? $t('history.deleting') : $t('history.delete') }}</span>
+                <span class="delete-text">{{ deletingId === selectedProject.simulation_id ? $t('history.deleting') : $t('history.delete') }}</span>
               </button>
             </div>
           </div>
@@ -219,7 +228,7 @@ const isExpanded = ref(false)
 const hoveringCard = ref(null)
 const historyContainer = ref(null)
 const selectedProject = ref(null)  // 当前选中的项目（用于弹窗）
-const deleting = ref(false)
+const deletingId = ref(null)  // 正在删除的 simulation_id
 let observer = null
 let isAnimating = false  // 动画锁，防止闪烁
 let expandDebounceTimer = null  // 防抖定时器
@@ -449,21 +458,23 @@ const goToReport = () => {
   }
 }
 
-// 删除模拟
-const handleDelete = async () => {
-  if (!selectedProject.value || deleting.value) return
+// 删除模拟（卡片点击 × 或弹窗内的删除按钮都走这里）
+const handleDelete = async (project) => {
+  const target = project || selectedProject.value
+  if (!target || deletingId.value) return
 
-  const sim = selectedProject.value
-  const idLabel = formatSimulationId(sim.simulation_id)
+  const idLabel = formatSimulationId(target.simulation_id)
   const confirmed = window.confirm(t('history.deleteConfirm', { id: idLabel }))
   if (!confirmed) return
 
-  deleting.value = true
+  deletingId.value = target.simulation_id
   try {
-    const response = await deleteSimulation(sim.simulation_id)
+    const response = await deleteSimulation(target.simulation_id)
     if (response && response.success) {
-      projects.value = projects.value.filter(p => p.simulation_id !== sim.simulation_id)
-      closeModal()
+      projects.value = projects.value.filter(p => p.simulation_id !== target.simulation_id)
+      if (selectedProject.value?.simulation_id === target.simulation_id) {
+        closeModal()
+      }
     } else {
       const errorMsg = response?.error || 'Unknown error'
       window.alert(t('history.deleteFailed', { error: errorMsg }))
@@ -473,7 +484,7 @@ const handleDelete = async () => {
     const errorMsg = error?.response?.data?.error || error?.message || 'Network error'
     window.alert(t('history.deleteFailed', { error: errorMsg }))
   } finally {
-    deleting.value = false
+    deletingId.value = null
   }
 }
 
@@ -726,6 +737,49 @@ onUnmounted(() => {
 
 .project-card.hovering {
   z-index: 1000 !important;
+}
+
+/* 卡片删除按钮（hover 时可见） */
+.card-delete-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid #E5E7EB;
+  border-radius: 50%;
+  background: #FFFFFF;
+  color: #9CA3AF;
+  font-size: 14px;
+  line-height: 1;
+  font-weight: 500;
+  cursor: pointer;
+  opacity: 0;
+  transform: scale(0.85);
+  transition: opacity 0.18s ease, transform 0.18s ease, color 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+  z-index: 5;
+}
+
+.project-card:hover .card-delete-btn,
+.project-card.hovering .card-delete-btn {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.card-delete-btn:hover {
+  color: #DC2626;
+  border-color: #DC2626;
+  background: #FEF2F2;
+}
+
+.card-delete-btn:disabled,
+.card-delete-btn.busy {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* 卡片头部 */
