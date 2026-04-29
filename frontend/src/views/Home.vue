@@ -67,7 +67,7 @@
           <div class="metrics-row">
             <div class="metric-card">
               <div class="metric-value">{{ $t('home.metricLowCost') }}</div>
-              <div class="metric-label">{{ $t('home.metricLowCostDesc') }}</div>
+              <!-- <div class="metric-label">{{ $t('home.metricLowCostDesc') }}</div> -->
             </div>
             <div class="metric-card">
               <div class="metric-value">{{ $t('home.metricHighAvail') }}</div>
